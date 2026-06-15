@@ -71,7 +71,7 @@ function initials(name) {
 const ADMIN_PASS = "vision2025";
 
 const css = `
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+* { font-family: system-ui, sans-serif; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'IBM Plex Sans Arabic', sans-serif; background: #080810; color: #e2e2f0; direction: rtl; }
 .app { min-height: 100vh; }
