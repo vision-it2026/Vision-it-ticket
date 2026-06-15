@@ -5,7 +5,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const db = {
   async select(table, filters = "") {
-    const res = await fetch(${SUPABASE_URL}/rest/v1/${table}?order=created_at.desc${filters}, {
+   const res = await fetch(`${SUPABASE_URL}/rest/v1/
       headers: { apikey: SUPABASE_KEY, Authorization: Bearer ${SUPABASE_KEY} },
     });
     return res.json();
