@@ -127,7 +127,10 @@ function SetupScreen({ onDone }) {
       if (ex && ex.length > 0) { localStorage.setItem("vision_user", JSON.stringify(ex[0])); onDone(ex[0]); return; }
       const res = await dbInsert("devices", { serial_number: serial, employee_name: name.trim(), department: dept.trim(), project: project.trim() });
       if (res && res[0]) { localStorage.setItem("vision_user", JSON.stringify(res[0])); onDone(res[0]); }
-      else setErr("حدث خطأ، حاول مرة ثانية");
+      else if (res && res.code === "23505") {
+  const ex2 = await dbSelect("devices", "&serial_number=eq." + serial);
+  if (ex2 && ex2.length > 0) { localStorage.setItem("vision_user", JSON.stringify(ex2[0])); onDone(ex2[0]); }
+} else setErr("حدث خطأ، حاول مرة ثانية");
     } catch { setErr("تعذر الاتصال بالخادم"); }
     setLoading(false);
   }
