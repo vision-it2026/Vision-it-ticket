@@ -9,8 +9,9 @@ const JH = { ...H, "Content-Type": "application/json", Prefer: "return=represent
 
 async function dbSelect(table, filter) {
   filter = filter || "";
-  const r = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?order=created_at.desc" + filter, { headers: H });
+  const r = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?select=*" + filter, { headers: H });
   return r.json();
+}
 }
 async function dbInsert(table, data) {
   const r = await fetch(SUPABASE_URL + "/rest/v1/" + table, { method: "POST", headers: JH, body: JSON.stringify(data) });
