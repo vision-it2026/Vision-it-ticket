@@ -24,12 +24,12 @@ async function dbDelete(table, id) {
   await fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, { method: "DELETE", headers: H });
 }
 
-function getSerial() {
-  let s = localStorage.getItem("vision_serial");
-  if (!s) {
-    s = "SIM-" + Array.from({ length: 12 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]).join("");
-    localStorage.setItem("vision_serial", s);
-  }
+async function simpleHash(str) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
   return s;
 }
 
