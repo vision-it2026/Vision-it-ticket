@@ -25,13 +25,21 @@ async function dbDelete(table, id) {
   await fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, { method: "DELETE", headers: H });
 }
 
-function getSerial() {
-  let s = localStorage.getItem("vision_serial");
-  if (!s) {
-    s = "SIM-" + Array.from({ length: 12 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]).join("");
-    localStorage.setItem("vision_serial", s);
+async function getSerial() {
+  try {
+    const r = await fetch("http://localhost:59284");
+    const d = await r.json();
+    return d.serial;
+  } catch {
+    let s = localStorage.getItem("vision_serial");
+    if (!s) {
+      s = "SIM-" + Array.from({ length: 12 }, () =>
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]
+      ).join("");
+      localStorage.setItem("vision_serial", s);
+    }
+    return s;
   }
-  return s;
 }
 
 function fmtDate(iso) {
