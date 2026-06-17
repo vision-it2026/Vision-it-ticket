@@ -147,7 +147,7 @@ function SetupScreen({ onDone, serial }) {
     if (!name.trim()) return;
     setLoading(true); setErr("");
     try {
-      const ex = await dbSelect("devices", "&serial_number=eq." + serial);
+      const ex = await dbSelect("devices", "&serial_number=eq."+encodeURIComponent(s));
       if (ex && ex.length > 0) {
         localStorage.setItem("vision_user", JSON.stringify(ex[0]));
         onDone(ex[0]); return;
