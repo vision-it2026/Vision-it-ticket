@@ -32,17 +32,23 @@ async function simpleHash(str) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 
-async function getSerial() {
+function getSerial() {
   const url = new URLSearchParams(window.location.search);
-  const token = url.get("token");
   const serial = url.get("s");
-  if (token && serial) {
-    const expected = await simpleHash(serial + SECRET);
-    if (token === expected) {
-      localStorage.setItem("vision_serial", serial);
-      return serial;
-    }
+  const token = url.get("token");
+  if (serial && token) {
+    localStorage.setItem("vision_serial", serial);
+    return serial;
   }
+  let s = localStorage.getItem("vision_serial");
+  if (!s) {
+    s = "SIM-" + Array.from({ length: 12 }, () =>
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]
+    ).join("");
+    localStorage.setItem("vision_serial", s);
+  }
+  return s;
+}
   let s = localStorage.getItem("vision_serial");
   if (!s) {
     s = "SIM-" + Array.from({ length: 12 }, () =>
