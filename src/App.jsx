@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 const SUPABASE_URL = "https://gmmnlnftpapnzmqlfdia.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtbW5sbmZ0cGFwbnptcWxmZGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDA4MTksImV4cCI6MjA5NzA3NjgxOX0.aeOyS3gK4SZRlfnOnlc6dcce5U-H8uLf1tghyOCktb0";
 const ADMIN_PASS = "vision2025";
-const SECRET = "VISION_IT_2025_SECRET";
 
 const H = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY };
 const JH = { ...H, "Content-Type": "application/json", Prefer: "return=representation" };
@@ -25,13 +24,6 @@ async function dbDelete(table, id) {
   await fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, { method: "DELETE", headers: H });
 }
 
-async function simpleHash(str) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
-}
-
 function getSerial() {
   const url = new URLSearchParams(window.location.search);
   const serial = url.get("s");
@@ -40,15 +32,6 @@ function getSerial() {
     localStorage.setItem("vision_serial", serial);
     return serial;
   }
-  let s = localStorage.getItem("vision_serial");
-  if (!s) {
-    s = "SIM-" + Array.from({ length: 12 }, () =>
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]
-    ).join("");
-    localStorage.setItem("vision_serial", s);
-  }
-  return s;
-}
   let s = localStorage.getItem("vision_serial");
   if (!s) {
     s = "SIM-" + Array.from({ length: 12 }, () =>
@@ -153,10 +136,12 @@ function SetupScreen({ onDone, serial }) {
     if (!name.trim()) return;
     setLoading(true); setErr("");
     try {
-      const ex = await dbSelect("devices", "&serial_number=eq."+encodeURIComponent(s));
+      const ex = await dbSelect("devices", "&serial_number=eq." + serial);
       if (ex && ex.length > 0) {
-        localStorage.setItem("vision_user", JSON.stringify(ex[0]));
-        onDone(ex[0]); return;
+        const updated = await dbUpdate("devices", { employee_name: name.trim(), department: dept.trim(), project: project.trim() }, ex[0].id);
+        const u = { ...ex[0], employee_name: name.trim(), department: dept.trim(), project: project.trim() };
+        localStorage.setItem("vision_user", JSON.stringify(u));
+        onDone(u); return;
       }
       const res = await dbInsert("devices", { serial_number: serial, employee_name: name.trim(), department: dept.trim(), project: project.trim() });
       if (res && res[0]) { localStorage.setItem("vision_user", JSON.stringify(res[0])); onDone(res[0]); }
@@ -183,7 +168,7 @@ function SetupScreen({ onDone, serial }) {
   );
 }
 
-function UserApp({ user, onLogout }) {
+function UserApp({ user }) {
   const [tab, setTab] = useState("new");
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -277,7 +262,8 @@ function UserApp({ user, onLogout }) {
 }
 
 function AdminLogin({ onSuccess }) {
-  const [pass, setPass] = useState(""); const [err, setErr] = useState(false);
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState(false);
   function tryLogin() { if (pass === ADMIN_PASS) { sessionStorage.setItem("vision_admin","1"); onSuccess(); } else { setErr(true); setTimeout(()=>setErr(false),2000); } }
   return (
     <div style={st.wrap}>
@@ -456,18 +442,14 @@ export default function App() {
       return;
     }
     async function init() {
-      const s = await getSerial();
+      const s = getSerial();
       setSerial(s);
       try {
         const ex = await dbSelect("devices", "&serial_number=eq." + s);
-        if(ex && ex.length > 0 && ex[0].employee_name !== "غير مسجل") {
+        if(ex && ex.length > 0 && ex[0].employee_name && ex[0].employee_name !== "غير مسجل") {
           localStorage.setItem("vision_user", JSON.stringify(ex[0]));
           setUser(ex[0]); setMode("user"); return;
         }
-      } catch {}
-      try {
-        const saved = localStorage.getItem("vision_user");
-        if(saved){ setUser(JSON.parse(saved)); setMode("user"); return; }
       } catch {}
       setMode("setup");
     }
@@ -479,7 +461,7 @@ export default function App() {
   return (
     <>
       {mode==="setup"&&<SetupScreen serial={serial} onDone={u=>{setUser(u);setMode("user");}} />}
-      {mode==="user"&&user&&<UserApp user={user} onLogout={()=>{localStorage.removeItem("vision_user");setMode("setup");}} />}
+      {mode==="user"&&user&&<UserApp user={user} />}
       {mode==="adminLogin"&&<AdminLogin onSuccess={()=>setMode("admin")} />}
       {mode==="admin"&&<AdminApp onLogout={()=>{sessionStorage.removeItem("vision_admin");setMode("adminLogin");}} />}
     </>
