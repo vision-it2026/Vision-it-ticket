@@ -12,11 +12,6 @@ async function dbSelect(table, filter) {
   const r = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?select=*" + filter, { headers: H });
   return r.json();
 }
-async function dbSelect(table, filter) {
-  filter = filter || "";
-  const r = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?select=*" + filter, { headers: H });
-  return r.json();
-}
 async function dbUpdate(table, data, id) {
   const r = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, { method: "PATCH", headers: JH, body: JSON.stringify(data) });
   return r.json();
