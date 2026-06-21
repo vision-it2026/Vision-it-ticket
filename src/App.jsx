@@ -25,18 +25,9 @@ async function dbDelete(table, id) {
 }
 
 function getSerial() {
-  const url = new URLSearchParams(window.location.search);
-  const serial = url.get("s");
-  const token = url.get("token");
-  if (serial && token) {
-    localStorage.setItem("vision_serial", serial);
-    return serial;
-  }
   let s = localStorage.getItem("vision_serial");
   if (!s) {
-    s = "SIM-" + Array.from({ length: 12 }, () =>
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]
-    ).join("");
+    s = "SIM-" + Array.from({ length: 12 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]).join("");
     localStorage.setItem("vision_serial", s);
   }
   return s;
@@ -116,48 +107,41 @@ const st = {
 function badge(label, bg, color) {
   return <span style={{ padding: "2px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: bg, color: color, whiteSpace: "nowrap" }}>{label}</span>;
 }
+
 function statusBadge(status) {
   return status === "open" ? badge("🟡 مفتوح", "#1f1200", "#f59e0b") : badge("✅ مغلق", "#022c17", "#10b981");
 }
+
 function priorityBadge(p) {
   if (p === "high") return badge("عاجل", "#1f0505", "#ef4444");
   if (p === "medium") return badge("متوسط", "#1f1200", "#f59e0b");
   return badge("عادي", "#022c17", "#10b981");
 }
 
-function SetupScreen({ onDone, serial }) {
-  const [name, setName] = useState("");
-  const [dept, setDept] = useState("");
-  const [project, setProject] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
+// ── Setup ──
+function SetupScreen({ onDone }) {
+  const [name, setName] = useState(""); const [dept, setDept] = useState(""); const [project, setProject] = useState("");
+  const [loading, setLoading] = useState(false); const [err, setErr] = useState("");
+  const serial = getSerial();
   async function submit() {
-    if (!name.trim()) return;
-    setLoading(true); setErr("");
+    if (!name.trim()) return; setLoading(true); setErr("");
     try {
       const ex = await dbSelect("devices", "&serial_number=eq." + serial);
-      if (ex && ex.length > 0) {
-        const updated = await dbUpdate("devices", { employee_name: name.trim(), department: dept.trim(), project: project.trim() }, ex[0].id);
-        const u = { ...ex[0], employee_name: name.trim(), department: dept.trim(), project: project.trim() };
-        localStorage.setItem("vision_user", JSON.stringify(u));
-        onDone(u); return;
-      }
+      if (ex && ex.length > 0) { localStorage.setItem("vision_user", JSON.stringify(ex[0])); onDone(ex[0]); return; }
       const res = await dbInsert("devices", { serial_number: serial, employee_name: name.trim(), department: dept.trim(), project: project.trim() });
       if (res && res[0]) { localStorage.setItem("vision_user", JSON.stringify(res[0])); onDone(res[0]); }
       else setErr("حدث خطأ، حاول مرة ثانية");
     } catch { setErr("تعذر الاتصال بالخادم"); }
     setLoading(false);
   }
-
   return (
-    <div style={st.wrap}>
+    <div style={{ ...st.wrap }}>
       <div style={st.card}>
         <div style={st.logo}><div style={st.logoIcon}>👁️</div><div style={st.logoName}>VISION IT</div></div>
         <div style={st.tag}>Ticket System</div>
         <div style={st.title}>أهلاً بك! 👋</div>
         <div style={st.sub}>سجّل بياناتك مرة وحدة وما تحتاج تسجل مرة ثانية</div>
-        <div style={{ marginBottom: 16 }}><label style={st.label}>الاسم الكامل</label><input style={st.input} value={name} onChange={e => setName(e.target.value)} placeholder="مثال: أحمد العمري" /></div>
+        <div style={{ marginBottom: 16 }}><label style={st.label}>الاسم الكامل *</label><input style={st.input} value={name} onChange={e => setName(e.target.value)} placeholder="مثال: أحمد العمري" /></div>
         <div style={{ marginBottom: 16 }}><label style={st.label}>القسم</label><input style={st.input} value={dept} onChange={e => setDept(e.target.value)} placeholder="مثال: المحاسبة" /></div>
         <div style={{ marginBottom: 16 }}><label style={st.label}>المشروع الحالي</label><input style={st.input} value={project} onChange={e => setProject(e.target.value)} placeholder="مثال: مشروع التحول الرقمي" /></div>
         <div style={{ marginBottom: 16 }}><label style={st.label}>معرّف الجهاز</label><div style={st.serialChip}>🖥️ {serial}</div></div>
@@ -168,43 +152,26 @@ function SetupScreen({ onDone, serial }) {
   );
 }
 
-function UserApp({ user }) {
-  const [tab, setTab] = useState("new");
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
-  const [cat, setCat] = useState("جهاز");
-  const [priority, setPriority] = useState("medium");
-  const [submitted, setSubmitted] = useState(false);
-  const [sending, setSending] = useState(false);
-
-  const loadTickets = useCallback(async () => {
-    setLoading(true);
-    const d = await dbSelect("tickets", "&serial_number=eq." + user.serial_number);
-    setTickets(Array.isArray(d) ? d : []);
-    setLoading(false);
-  }, [user.serial_number]);
-
+// ── User ──
+function UserApp({ user, onLogout }) {
+  const [tab, setTab] = useState("new"); const [tickets, setTickets] = useState([]); const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState(""); const [desc, setDesc] = useState(""); const [cat, setCat] = useState("جهاز"); const [priority, setPriority] = useState("medium");
+  const [submitted, setSubmitted] = useState(false); const [sending, setSending] = useState(false);
+  const loadTickets = useCallback(async () => { setLoading(true); const d = await dbSelect("tickets", "&serial_number=eq." + user.serial_number); setTickets(Array.isArray(d) ? d : []); setLoading(false); }, [user.serial_number]);
   useEffect(() => { if (tab === "my") loadTickets(); }, [tab, loadTickets]);
-
   async function submitTicket() {
-    if (!title.trim() || !desc.trim()) return;
-    setSending(true);
+    if (!title.trim() || !desc.trim()) return; setSending(true);
     await dbInsert("tickets", { serial_number: user.serial_number, employee_name: user.employee_name, department: user.department, project: user.project, title: title.trim(), description: desc.trim(), category: cat, priority, status: "open" });
-    setTitle(""); setDesc(""); setPriority("medium"); setCat("جهاز");
-    setSending(false); setSubmitted(true);
+    setTitle(""); setDesc(""); setPriority("medium"); setCat("جهاز"); setSending(false); setSubmitted(true);
     setTimeout(() => { setSubmitted(false); setTab("my"); }, 1800);
   }
-
   const open = tickets.filter(t => t.status === "open").length;
   const closed = tickets.filter(t => t.status === "closed").length;
-
   return (
     <div style={{ minHeight: "100vh", background: "#080810", color: "#e2e2f0", fontFamily: "system-ui,sans-serif", direction: "rtl" }}>
       <div style={st.topbar}>
         <div style={st.topL}><span style={{ fontSize: 18 }}>👁️</span><span style={st.topLogo}>VISION IT</span><span style={st.topBadge}>TICKET</span></div>
-        <div style={st.topR}><div style={st.chip}><div style={st.avatar}>{initials(user.employee_name)}</div><span>{user.employee_name}</span></div></div>
+        <div style={st.topR}><div style={st.chip}><div style={st.avatar}>{initials(user.employee_name)}</div><span>{user.employee_name}</span></div><button style={st.iconBtn} onClick={onLogout}>خروج</button></div>
       </div>
       <div style={st.page}>
         <div style={st.stats}>
@@ -223,13 +190,9 @@ function UserApp({ user }) {
               <div style={st.successBox}><div style={{ fontSize: 44, marginBottom: 12 }}>✅</div><div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>تم رفع تيكتك!</div><div style={{ fontSize: 13, color: "#5a5a78" }}>سيتواصل معك الدعم التقني قريباً</div></div>
             ) : (
               <>
-                <div style={{ marginBottom: 16 }}><label style={st.label}>عنوان المشكلة</label><input style={st.input} value={title} onChange={e => setTitle(e.target.value)} placeholder="مثال: الطابعة لا تعمل" /></div>
-                <div style={{ marginBottom: 16 }}><label style={st.label}>الفئة</label>
-                  <select style={st.select} value={cat} onChange={e => setCat(e.target.value)}>
-                    {["جهاز","شبكة","برنامج","طابعة","إيميل","أخرى"].map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div style={{ marginBottom: 16 }}><label style={st.label}>وصف المشكلة</label><textarea style={st.textarea} value={desc} onChange={e => setDesc(e.target.value)} placeholder="اشرح المشكلة بالتفصيل..." /></div>
+                <div style={{ marginBottom: 16 }}><label style={st.label}>عنوان المشكلة *</label><input style={st.input} value={title} onChange={e => setTitle(e.target.value)} placeholder="مثال: الطابعة لا تعمل" /></div>
+                <div style={{ marginBottom: 16 }}><label style={st.label}>الفئة</label><select style={st.select} value={cat} onChange={e => setCat(e.target.value)}>{["جهاز","شبكة","برنامج","طابعة","إيميل","أخرى"].map(c => <option key={c}>{c}</option>)}</select></div>
+                <div style={{ marginBottom: 16 }}><label style={st.label}>وصف المشكلة *</label><textarea style={st.textarea} value={desc} onChange={e => setDesc(e.target.value)} placeholder="اشرح المشكلة بالتفصيل..." /></div>
                 <div style={{ marginBottom: 16 }}><label style={st.label}>الأولوية</label>
                   <div style={st.pills}>
                     {[["low","🟢 عادي","#022c17","#10b981"],["medium","🟡 متوسط","#1f1200","#f59e0b"],["high","🔴 عاجل","#1f0505","#ef4444"]].map(([v,l,bg,c]) => (
@@ -242,28 +205,26 @@ function UserApp({ user }) {
             )}
           </div>
         )}
-        {tab === "my" && (loading ? <div style={{ textAlign:"center", padding: 32, color: "#5a5a78" }}>جاري التحميل...</div> :
-          tickets.length === 0 ? (
-            <div style={st.empty}><div style={st.emptyIcon}>📭</div><div style={st.emptyTitle}>لا توجد تيكتات بعد</div><div style={st.emptySub}>ارفع تيكتك الأول من التبويب أعلاه</div></div>
-          ) : (
-            <div>{tickets.map(t => (
-              <div key={t.id} style={st.tCard}>
-                <div style={st.tHead}><div style={st.tTitle}>{t.title}</div><div style={{ display:"flex", gap:6, flexWrap:"wrap", flexShrink:0 }}>{statusBadge(t.status)}{badge(t.category,"#14143a","#a855f7")}</div></div>
-                <div style={st.tDesc}>{t.description}</div>
-                {t.admin_reply && <div style={st.tReply}><div style={st.tReplyLabel}>💬 رد الدعم التقني</div><div style={st.tReplyText}>{t.admin_reply}</div></div>}
-                <div style={st.tDate}>{fmtDate(t.created_at)}</div>
-              </div>
-            ))}</div>
-          )
-        )}
+        {tab === "my" && (loading ? <div style={{ textAlign:"center", padding: 32, color: "#5a5a78" }}>جاري التحميل...</div> : tickets.length===0 ? (
+          <div style={st.empty}><div style={st.emptyIcon}>📭</div><div style={st.emptyTitle}>لا توجد تيكتات بعد</div><div style={st.emptySub}>ارفع تيكتك الأول من التبويب أعلاه</div></div>
+        ) : (
+          <div>{tickets.map(t => (
+            <div key={t.id} style={st.tCard}>
+              <div style={st.tHead}><div style={st.tTitle}>{t.title}</div><div style={{ display:"flex", gap:6, flexWrap:"wrap", flexShrink:0 }}>{statusBadge(t.status)}{badge(t.category,"#14143a","#a855f7")}</div></div>
+              <div style={st.tDesc}>{t.description}</div>
+              {t.admin_reply && <div style={st.tReply}><div style={st.tReplyLabel}>💬 رد الدعم التقني</div><div style={st.tReplyText}>{t.admin_reply}</div></div>}
+              <div style={st.tDate}>{fmtDate(t.created_at)}</div>
+            </div>
+          ))}</div>
+        ))}
       </div>
     </div>
   );
 }
 
+// ── Admin Login ──
 function AdminLogin({ onSuccess }) {
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState(false);
+  const [pass, setPass] = useState(""); const [err, setErr] = useState(false);
   function tryLogin() { if (pass === ADMIN_PASS) { sessionStorage.setItem("vision_admin","1"); onSuccess(); } else { setErr(true); setTimeout(()=>setErr(false),2000); } }
   return (
     <div style={st.wrap}>
@@ -272,9 +233,7 @@ function AdminLogin({ onSuccess }) {
         <div style={st.tag}>Admin Panel</div>
         <div style={st.title}>دخول المشرف</div>
         <div style={st.sub}>أدخل كلمة مرور المشرف</div>
-        <div style={{ marginBottom: 16 }}><label style={st.label}>كلمة المرور</label>
-          <input type="password" style={{ ...st.input, ...(err?{border:"1px solid #ef4444"}:{}) }} value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&tryLogin()} placeholder="••••••••" />
-        </div>
+        <div style={{ marginBottom: 16 }}><label style={st.label}>كلمة المرور</label><input type="password" style={{ ...st.input, ...(err?{border:"1px solid #ef4444"}:{}) }} value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&tryLogin()} placeholder="••••••••" /></div>
         {err && <div style={st.err}>❌ كلمة المرور غير صحيحة</div>}
         <div style={{ marginTop: 16 }}><button style={st.btn} onClick={tryLogin}>دخول ←</button></div>
       </div>
@@ -282,56 +241,22 @@ function AdminLogin({ onSuccess }) {
   );
 }
 
+// ── Admin App ──
 function AdminApp({ onLogout }) {
-  const [tab, setTab] = useState("tickets");
-  const [tickets, setTickets] = useState([]);
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [replyId, setReplyId] = useState(null);
-  const [replyText, setReplyText] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [editName, setEditName] = useState("");
-
-  async function loadAll() {
-    setLoading(true);
-    const [t,d] = await Promise.all([dbSelect("tickets"), dbSelect("devices")]);
-    setTickets(Array.isArray(t)?t:[]);
-    setDevices(Array.isArray(d)?d:[]);
-    setLoading(false);
-  }
-
-  useEffect(()=>{ loadAll(); },[]);
-
+  const [tab, setTab] = useState("tickets"); const [tickets, setTickets] = useState([]); const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(false); const [filter, setFilter] = useState("all"); const [search, setSearch] = useState("");
+  const [replyId, setReplyId] = useState(null); const [replyText, setReplyText] = useState(""); const [saving, setSaving] = useState(false);
+  async function loadAll() { setLoading(true); const [t,d] = await Promise.all([dbSelect("tickets"),dbSelect("devices")]); setTickets(Array.isArray(t)?t:[]); setDevices(Array.isArray(d)?d:[]); setLoading(false); }
+  useEffect(()=>{loadAll();},[]);
   async function closeTicket(id) { await dbUpdate("tickets",{status:"closed",closed_at:new Date().toISOString()},id); setTickets(p=>p.map(t=>t.id===id?{...t,status:"closed"}:t)); }
   async function reopenTicket(id) { await dbUpdate("tickets",{status:"open",closed_at:null},id); setTickets(p=>p.map(t=>t.id===id?{...t,status:"open"}:t)); }
-  async function sendReply(id) {
-    if(!replyText.trim())return; setSaving(true);
-    await dbUpdate("tickets",{admin_reply:replyText.trim()},id);
-    setTickets(p=>p.map(t=>t.id===id?{...t,admin_reply:replyText.trim()}:t));
-    setReplyId(null); setReplyText(""); setSaving(false);
-  }
-  async function delDevice(id) {
-    if(!window.confirm("تأكيد الحذف؟"))return;
-    await dbDelete("devices",id);
-    setDevices(p=>p.filter(d=>d.id!==id));
-  }
-  async function saveDeviceName(id) {
-    await dbUpdate("devices",{employee_name:editName},id);
-    setDevices(p=>p.map(d=>d.id===id?{...d,employee_name:editName}:d));
-    setEditId(null); setEditName("");
-  }
-
+  async function sendReply(id) { if(!replyText.trim())return; setSaving(true); await dbUpdate("tickets",{admin_reply:replyText.trim()},id); setTickets(p=>p.map(t=>t.id===id?{...t,admin_reply:replyText.trim()}:t)); setReplyId(null);setReplyText("");setSaving(false); }
+  async function delDevice(id) { if(!window.confirm("تأكيد الحذف؟"))return; await dbDelete("devices",id); setDevices(p=>p.filter(d=>d.id!==id)); }
   let shown = tickets;
   if(filter!=="all") shown=shown.filter(t=>t.status===filter);
   if(search) shown=shown.filter(t=>t.employee_name?.includes(search)||t.title?.includes(search)||t.department?.includes(search));
-
-  const open=tickets.filter(t=>t.status==="open").length;
-  const closed=tickets.filter(t=>t.status==="closed").length;
+  const open=tickets.filter(t=>t.status==="open").length; const closed=tickets.filter(t=>t.status==="closed").length;
   const high=tickets.filter(t=>t.priority==="high"&&t.status==="open").length;
-
   return (
     <div style={{ minHeight:"100vh", background:"#080810", color:"#e2e2f0", fontFamily:"system-ui,sans-serif", direction:"rtl" }}>
       <div style={st.topbar}>
@@ -362,9 +287,7 @@ function AdminApp({ onLogout }) {
             ):(
               <div>{shown.map(t=>(
                 <div key={t.id} style={st.tCard}>
-                  <div style={st.tHead}><div style={st.tTitle}>{t.title}</div>
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>{statusBadge(t.status)}{priorityBadge(t.priority)}{badge(t.category,"#14143a","#a855f7")}</div>
-                  </div>
+                  <div style={st.tHead}><div style={st.tTitle}>{t.title}</div><div style={{display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>{statusBadge(t.status)}{priorityBadge(t.priority)}{badge(t.category,"#14143a","#a855f7")}</div></div>
                   <div style={st.tDesc}>{t.description}</div>
                   {t.admin_reply&&<div style={st.tReply}><div style={st.tReplyLabel}>💬 ردك</div><div style={st.tReplyText}>{t.admin_reply}</div></div>}
                   <div style={st.tFoot}>
@@ -398,29 +321,8 @@ function AdminApp({ onLogout }) {
         ):(
           <div>{devices.map(d=>(
             <div key={d.id} style={st.devCard}>
-              <div style={{flex:1}}>
-                {editId===d.id?(
-                  <input style={{...st.input,marginBottom:6}} value={editName} onChange={e=>setEditName(e.target.value)} placeholder="اسم الموظف" />
-                ):(
-                  <div style={{fontSize:14,fontWeight:600,marginBottom:3}}>👤 {d.employee_name}</div>
-                )}
-                <div style={{fontSize:12,color:"#5a5a78"}}>{d.department} {d.project?"— 💼 "+d.project:""}</div>
-                <div style={{fontSize:10,color:"#3a3a5a",fontFamily:"monospace"}}>🖥️ {d.serial_number}</div>
-                {d.mac_address&&<div style={{fontSize:10,color:"#3a3a5a",fontFamily:"monospace"}}>📡 {d.mac_address}</div>}
-              </div>
-              <div style={{display:"flex",gap:6,flexDirection:"column"}}>
-                {editId===d.id?(
-                  <>
-                    <button style={st.btnGreen} onClick={()=>saveDeviceName(d.id)}>حفظ</button>
-                    <button style={st.btnGhost} onClick={()=>setEditId(null)}>إلغاء</button>
-                  </>
-                ):(
-                  <>
-                    <button style={st.btnGhost} onClick={()=>{setEditId(d.id);setEditName(d.employee_name);}}>✏️ تعديل</button>
-                    <button style={st.btnRed} onClick={()=>delDevice(d.id)}>حذف</button>
-                  </>
-                )}
-              </div>
+              <div><div style={{fontSize:14,fontWeight:600,marginBottom:3}}>👤 {d.employee_name}</div><div style={{fontSize:12,color:"#5a5a78"}}>{d.department} {d.project?"— 💼 "+d.project:""}</div><div style={{fontSize:10,color:"#3a3a5a",fontFamily:"monospace"}}>🖥️ {d.serial_number}</div></div>
+              <button style={st.btnRed} onClick={()=>delDevice(d.id)}>حذف</button>
             </div>
           ))}</div>
         ))}
@@ -430,38 +332,17 @@ function AdminApp({ onLogout }) {
 }
 
 export default function App() {
-  const [mode, setMode] = useState("loading");
-  const [user, setUser] = useState(null);
-  const [serial, setSerial] = useState("");
-
+  const [mode, setMode] = useState("loading"); const [user, setUser] = useState(null);
   useEffect(()=>{
     const url = new URLSearchParams(window.location.search);
-    if(url.get("admin")==="1"){
-      if(sessionStorage.getItem("vision_admin")==="1") setMode("admin");
-      else setMode("adminLogin");
-      return;
-    }
-    async function init() {
-      const s = getSerial();
-      setSerial(s);
-      try {
-        const ex = await dbSelect("devices", "&serial_number=eq." + s);
-        if(ex && ex.length > 0 && ex[0].employee_name && ex[0].employee_name !== "غير مسجل") {
-          localStorage.setItem("vision_user", JSON.stringify(ex[0]));
-          setUser(ex[0]); setMode("user"); return;
-        }
-      } catch {}
-      setMode("setup");
-    }
-    init();
+    if(url.get("admin")==="1"){if(sessionStorage.getItem("vision_admin")==="1")setMode("admin");else setMode("adminLogin");return;}
+    try{const s=localStorage.getItem("vision_user");if(s){setUser(JSON.parse(s));setMode("user");}else setMode("setup");}catch{setMode("setup");}
   },[]);
-
   if(mode==="loading") return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#080810",color:"#7c3aed"}}>جاري التحميل...</div>;
-
   return (
     <>
-      {mode==="setup"&&<SetupScreen serial={serial} onDone={u=>{setUser(u);setMode("user");}} />}
-      {mode==="user"&&user&&<UserApp user={user} />}
+      {mode==="setup"&&<SetupScreen onDone={u=>{setUser(u);setMode("user");}} />}
+      {mode==="user"&&user&&<UserApp user={user} onLogout={()=>{localStorage.removeItem("vision_user");setMode("setup");}} />}
       {mode==="adminLogin"&&<AdminLogin onSuccess={()=>setMode("admin")} />}
       {mode==="admin"&&<AdminApp onLogout={()=>{sessionStorage.removeItem("vision_admin");setMode("adminLogin");}} />}
     </>
