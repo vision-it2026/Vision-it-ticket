@@ -25,13 +25,6 @@ async function dbDelete(table, id) {
 }
 
 function getSerial() {
-  const url = new URLSearchParams(window.location.search);
-  const serial = url.get("s");
-  const token = url.get("token");
-  if (serial && token) {
-    localStorage.setItem("vision_serial", serial);
-    return serial;
-  }
   let s = localStorage.getItem("vision_serial");
   if (!s) {
     s = "SIM-" + Array.from({ length: 12 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]).join("");
