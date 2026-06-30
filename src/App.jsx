@@ -98,7 +98,6 @@ const st = {
   emptyIcon: { fontSize: 36, marginBottom: 10 },
   emptyTitle: { fontSize: 15, fontWeight: 600, color: "#e2e2f0", marginBottom: 5 },
   emptySub: { fontSize: 12, color: "#5a5a78" },
-< truncated lines 101-250 >
   async function closeTicket(id) { await dbUpdate("tickets",{status:"closed",closed_at:new Date().toISOString()},id); setTickets(p=>p.map(t=>t.id===id?{...t,status:"closed"}:t)); }
   async function reopenTicket(id) { await dbUpdate("tickets",{status:"open",closed_at:null},id); setTickets(p=>p.map(t=>t.id===id?{...t,status:"open"}:t)); }
   async function sendReply(id) { if(!replyText.trim())return; setSaving(true); await dbUpdate("tickets",{admin_reply:replyText.trim()},id); setTickets(p=>p.map(t=>t.id===id?{...t,admin_reply:replyText.trim()}:t)); setReplyId(null);setReplyText("");setSaving(false); }
